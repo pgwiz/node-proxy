@@ -3,15 +3,8 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 
 const app = express();
 
-// Open CORS
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  next();
-});
-
-// Proxy all requests through here
 app.use('/', createProxyMiddleware({
-  target: 'https://', // actual destination will be filled per request
+  target: 'https://', // dynamically overwritten per request
   changeOrigin: true,
   secure: false,
   pathRewrite: (path, req) => {
@@ -20,16 +13,21 @@ app.use('/', createProxyMiddleware({
   },
   router: (req) => {
     const url = decodeURIComponent(req.path.slice(1));
-    const { origin } = new URL(url);
-    return origin;
+    return new URL(url).origin;
   },
   onProxyReq: (proxyReq, req, res) => {
-    proxyReq.setHeader('Referer', 'https://www.youtube.com');
+    // 🛡️ Anti-bot headers
     proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)');
+    proxyReq.setHeader('Referer', 'https://www.youtube.com/');
+    proxyReq.setHeader('Origin', 'https://www.youtube.com');
+    proxyReq.setHeader('Accept-Language', 'en-US,en;q=0.9');
+    proxyReq.setHeader('Sec-Fetch-Site', 'same-origin');
+    proxyReq.setHeader('Sec-Fetch-Mode', 'navigate');
+    proxyReq.setHeader('Connection', 'keep-alive');
   }
 }));
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`🚀 Proxy listening on port ${port}`);
+  console.log(`🌀 Proxy server running on http://localhost:${port}`);
 });
